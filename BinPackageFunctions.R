@@ -7,6 +7,7 @@
   # Standard rectangular binning
   # Quantile rectangular binning
   # Random rectangular binning
+  # Frequency binning of reduced binned data
 
 # 2d binning
   # Independant 1d binning grid
@@ -17,14 +18,24 @@
 ### univariate binning based on bins definition (potentially developed from different data source, i.e. train bins then bin test)
 # define bin boundaries, adapt outermost for the range of data to be binned, then use .bincode to drop to primitive to relabel
 bin_by_def <- function(new_data_vec, bin_definition, output="centers"){
+  # make bounds
   bounds <- bin_definition$bin_bounds
   bounds[1] <- min(min(new_data_vec),bounds[1])
   bounds[length(bounds)] <- max(max(new_data_vec), bounds[length(bounds)])
+  # allocated to centers
   data_bins <- bin_definition$bin_centers[.bincode(new_data_vec,bounds,right=FALSE, include.lowest=TRUE)]
   names(data_bins) <- names(new_data_vec)
+  # Add bin labels
+  labs <-  paste(c("[",rep("(",(length(bin_definition$bin_bounds)-2))),
+                   bin_definition$bin_bounds[1:(length(bin_definition$bin_bounds)-1)],
+                   ",",bin_definition$bin_bounds[2:length(bin_definition$bin_bounds)],
+                   "]",sep="")
+  bin_labels <- factor(.bincode(new_data_vec,bounds,right=FALSE,include.lowest=TRUE),
+                       labels= labs)
+  
   if(output=="centers") return(data_bins)
   if(output=="definition") return(bin_definition)
-  if(output=="both") return(list(data_bins=data_bins,bin_definition=bin_definition))
+  if(output=="all") return(list(data_bins=data_bins,bin_labels=bin_labels,bin_definition=bin_definition))
 }
 # Testing with junk objects
 # bin_definition<-  make_bin_def(bin_centers,bin_bounds)
@@ -93,10 +104,11 @@ rand_rect_bin_1d <- function(xs, origin, width, output="centers"){
   # Return output based on option selected
   if(output=="centers") return(data_bins)
   if(output=="definition") return(list(bin_centers=round(bin_centers,10)))
-  if(output=="both") return(list(data_bins=data_bins,bin_centers=round(bin_centers,10)))
+  if(output=="all") return(list(data_bins=data_bins,bin_centers=round(bin_centers,10)))
 }
 # Testing with junk objects
 # data.frame(xs=1:10, centers=rand_rect_bin_1d(1:10, origin=.5, width=2))
+
 
 #----------------------------------
 ## Independent 2d Rectangular Binning for Binned Scatterplots
@@ -105,17 +117,95 @@ library(dplyr)
 library(ggplot2)
 xs <- diamonds$carat ; ys <- diamonds$price ; originx=0 ; originy=0 ; widthx=1 ; widthy=1000
 
-
-rect_bin_2d <- function(xs,ys, originx, originy, widthx, widthy, type="standard"){
+rect_bin_2d <- function(xs, ys, originx, originy, widthx, widthy, output="full"){
   tempdat <- data.frame(xs = xs, 
                         ys=ys,
                         binxs = rect_bin_1d(xs,originx,widthx),
-                        binys = rect_bin_1d(ys,originy,widthy)) 
+                        binys = rect_bin_1d(ys,originy,widthy))
+  if(output=="full") return(tempdat)
+  if(output=="centers") return(tempdat[,c("binxs","binys")])
+  if(output=="reduced") {
+    reduced_binned <- tempdat %>%
+      mutate(standarizedxs = (xs-mean(xs))/sd(xs),
+             standarizedys = (ys-mean(ys))/sd(ys),
+             standarizedbinxs = (binxs-mean(xs))/sd(xs),
+             standarizedbinys = (binys-mean(ys))/sd(ys)) %>%
+      group_by(binxs,binys) %>%
+      summarize(freq = n(),
+                bin_spat_loss = sum(sqrt((xs-binxs)^2+(ys-binys)^2)),
+                bin_standardized_spat_loss =  sum(sqrt((standarizedxs-standarizedbinxs)^2+(standarizedxs-standarizedbinys)^2)))
+      return(reduced_binned)
+  }
+} 
+# Test function
+red_data <- rect_bin_2d(xs=diamonds$carat,ys=diamonds$price,originx=0,originy=0,widthx=1,widthy=1000, output="reduced")
+red_data <- red_data %>% mutate(avg_bin_loss = bin_standardized_spat_loss/freq)
+head(red_data)
+
+
+
+#----------------------------------
+## Frequency Binning  
+# allows for standard or quantile binning of counts that may be raw,log,log10 (6 combinations)
+# input requires binned data output, number of freq breaks and type of freq binning
+# output of frequency bin values, labels and loss are attached the original then returned
+freq_bin <- function(reduced_data, bin_type="standard", count_type="raw", ncolor, pretty=FALSE, freq_col="freq"){ 
+  # Apply count transformations if needed
+  cs <- as.data.frame(reduced_data)[,freq_col]
+  if(count_type=="log")  cs <- log(cs)
+  if(count_type=="log10")  cs <- log10(cs)
+  # Find bin boundaries based on specification
+  if(bin_type=="standard"){
+    if (pretty==TRUE) {
+      bounds = pretty(cs,n=ncolor)
+    } else {
+      round_low=floor(min(cs) / ncolor) * ncolor
+      round_high=ceiling(max(cs) / ncolor) * ncolor
+      bounds <- seq(round_low,round_high,by = (round_high-round_low)/ncolor )
+    }
+  }
+  if(bin_type=="quantile"){
+    quants <- quantile(cs, seq(0, 1, by=1/(2*ncolor)))
+    bounds <- quants[seq(1,length(quants)+1, by=2)]
+  }
+  # Make bins and labels
+  temp <- gen_rect_bin_1d(cs, bounds, output="all")
+  reduced_data$freq_bins <- temp$data_bins
+  reduced_data$freq_bin_labs <- temp$bin_labels
   
-  reduced_binned <- tempdat %>%
+  return(reduced_data)
+}
+# Test out frequency binning function
+# red_freq_data <- freq_bin(red_data,  bin_type="standard", count_type="raw", ncolor=5, pretty=FALSE, freq_col="freq")
+
+head(red_freq_data)
+
+library(RColorBrewer)
+ggplot()+
+  geom_tile(aes(x=binxs, y=binys, fill=as.factor(freq_bins)), data=red_freq_data) +
+  scale_color_brewer()+
+  theme_bw()
+
+)))
+
+# average standardized spatial loss = .584 standard deviations
+sum(red_data$bin_standardized_spat_loss)/sum(red_data$freq)
+# In context this is an average of .28 carats and $0 dollars or 
+#  $500 (max loss for $)   
+# in lost information for the average diamonds
+sd(diamonds$carat)*.584
+
+
+head(rect_bin_2d(xs=diamonds$carat,ys=diamonds$price,originx=0,originy=0,widthx=1,widthy=1000, output="centers"))
+head(rect_bin_2d(xs=diamonds$carat,ys=diamonds$price,0,0,1,1000))
+
+
+
+reduced_bin <- function(xs, ys, originx, originy, widthx, widthy, loss="spatial average")
+  reduced_binned <- rect_bin_2d(xs, ys, originx, originy, widthx, widthy, output="full") %>%
     group_by(binxs,binys) %>%
-    summarize(binfreq = n(),
-              binspatialloss = sum(sqrt((xs-binxs)^2+(ys-binys)^2)) )
+    summarize(freq = n(),
+              binSpatial = sum(sqrt((xs-binxs)^2+(ys-binys)^2)) )
 
   summarydata <- data.frame( originx = originx, originy = originy, 
                              widthx = widthx, widthy = widthy,
