@@ -31,6 +31,7 @@ bin_by_def <- function(new_data_vec, bin_definition, output="centers"){
                    ",",bin_definition$bin_bounds[2:length(bin_definition$bin_bounds)],
                    "]",sep="")
   bin_labels <- factor(.bincode(new_data_vec,bounds,right=FALSE,include.lowest=TRUE),
+                       levels= 1:(length(bounds)-1),
                        labels= labs)
   
   if(output=="centers") return(data_bins)
@@ -149,7 +150,7 @@ head(red_data)
 # allows for standard or quantile binning of counts that may be raw,log,log10 (6 combinations)
 # input requires binned data output, number of freq breaks and type of freq binning
 # output of frequency bin values, labels and loss are attached the original then returned
-freq_bin <- function(reduced_data, bin_type="standard", count_type="raw", ncolor, pretty=FALSE, freq_col="freq"){ 
+freq_bin <- function(reduced_data, bin_type="standard", count_type="raw", n_freq=5, pretty=FALSE, freq_col="freq"){ 
   # Apply count transformations if needed
   cs <- as.data.frame(reduced_data)[,freq_col]
   if(count_type=="log")  cs <- log(cs)
@@ -157,36 +158,54 @@ freq_bin <- function(reduced_data, bin_type="standard", count_type="raw", ncolor
   # Find bin boundaries based on specification
   if(bin_type=="standard"){
     if (pretty==TRUE) {
-      bounds = pretty(cs,n=ncolor)
+      bounds = pretty(cs,n=n_freq)
     } else {
-      round_low=floor(min(cs) / ncolor) * ncolor
-      round_high=ceiling(max(cs) / ncolor) * ncolor
-      bounds <- seq(round_low,round_high,by = (round_high-round_low)/ncolor )
+      round_low=floor(min(cs) / n_freq) * n_freq
+      round_high=ceiling(max(cs) / n_freq) * n_freq
+      bounds <- seq(round_low,round_high,by = (round_high-round_low)/n_freq )
     }
   }
   if(bin_type=="quantile"){
-    quants <- quantile(cs, seq(0, 1, by=1/(2*ncolor)))
+    quants <- quantile(cs, seq(0, 1, by=1/(2*n_freq)))
     bounds <- quants[seq(1,length(quants)+1, by=2)]
   }
   # Make bins and labels
   temp <- gen_rect_bin_1d(cs, bounds, output="all")
-  reduced_data$freq_bins <- temp$data_bins
+  reduced_data$freq_bins <- factor(temp$data_bins, levels=temp$bin_definition$bin_centers)
   reduced_data$freq_bin_labs <- temp$bin_labels
   
   return(reduced_data)
 }
 # Test out frequency binning function
-# red_freq_data <- freq_bin(red_data,  bin_type="standard", count_type="raw", ncolor=5, pretty=FALSE, freq_col="freq")
+# 
 
 head(red_freq_data)
 
-library(RColorBrewer)
-ggplot()+
-  geom_tile(aes(x=binxs, y=binys, fill=as.factor(freq_bins)), data=red_freq_data) +
-  scale_color_brewer()+
-  theme_bw()
 
-)))
+red_data <- rect_bin_2d(xs=diamonds$carat,ys=diamonds$price,originx=0,originy=0,widthx=.5,widthy=1000, output="reduced")
+red_freq_data <- freq_bin(red_data,  bin_type="standard", count_type="raw", n_freq=5, pretty=FALSE, freq_col="freq")
+ggplot()+
+  geom_tile(aes(x=binxs, y=binys, fill=freq_bins), data=red_freq_data) +
+  scale_fill_brewer("Count", guide = guide_legend(label.position="bottom",
+                                                  label.hjust=.5,  
+                                                  title.position = "top"), 
+                    
+                    labels=levels(red_freq_data$freq_bin_labs)) +
+  theme_bw()+
+  theme(legend.key.width = unit(4, "cm"),
+        legend.position="bottom")
+
+
+scale_fill_manual("Frequencies (Quartiles)", values=cols, labels=upper,
+                  #                    guide = guide_legend(label.position="bottom", label.hjust=0.5,  
+                  #                                         title.position = "top"),
+                  guide = guide_legend(label.position="bottom", label.hjust=1.1,  
+                                       title.position = "top")) + 
+  theme_bw() + theme(legend.position="bottom",aspect.ratio=1,
+                     legend.key.width = unit(1.5, "cm"),
+                     panel.grid= element_blank(),
+                     plot.margin = unit(c(0.5,-.5,.1,-.5),"cm"),
+                     legend.text=element_text(size=12) ) 
 
 # average standardized spatial loss = .584 standard deviations
 sum(red_data$bin_standardized_spat_loss)/sum(red_data$freq)
