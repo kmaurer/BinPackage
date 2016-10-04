@@ -13,6 +13,14 @@
   # Independant 1d binning grid
   # Iterative conditional binning
 
+# Binned Scatterplot Functions
+  # Reduced binned data - one row per x/y bin
+  # Frequency binning
+  # Plot construction
+
+# Binning Loss Functions
+  # Spatial Loss Summary
+  # Frequency Loss Summary
 
 #----------------------------------
 ### univariate binning based on bins definition (potentially developed from different data source, i.e. train bins then bin test)
@@ -194,18 +202,14 @@ ggplot()+
   theme_bw()+
   theme(legend.key.width = unit(4, "cm"),
         legend.position="bottom")
+### PROBLEM: the plot skips over empty factor levels in legend and color scaling. 
 
 
-scale_fill_manual("Frequencies (Quartiles)", values=cols, labels=upper,
-                  #                    guide = guide_legend(label.position="bottom", label.hjust=0.5,  
-                  #                                         title.position = "top"),
-                  guide = guide_legend(label.position="bottom", label.hjust=1.1,  
-                                       title.position = "top")) + 
-  theme_bw() + theme(legend.position="bottom",aspect.ratio=1,
-                     legend.key.width = unit(1.5, "cm"),
-                     panel.grid= element_blank(),
-                     plot.margin = unit(c(0.5,-.5,.1,-.5),"cm"),
-                     legend.text=element_text(size=12) ) 
+
+
+
+
+
 
 # average standardized spatial loss = .584 standard deviations
 sum(red_data$bin_standardized_spat_loss)/sum(red_data$freq)
