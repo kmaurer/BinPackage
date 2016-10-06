@@ -179,9 +179,10 @@ freq_bin <- function(reduced_data, bin_type="standard", count_type="raw", n_freq
   }
   # Make bins and labels
   temp <- gen_rect_bin_1d(cs, bounds, output="all")
+  if(count_type=="log") reduced_data$log_freq <- cs
+  if(count_type=="log10") reduced_data$log10_freq <- cs
   reduced_data$freq_bins <- factor(temp$data_bins, levels=temp$bin_definition$bin_centers)
   reduced_data$freq_bin_labs <- temp$bin_labels
-  
   return(reduced_data)
 }
 # Test out frequency binning function
@@ -194,20 +195,25 @@ freq_bin <- function(reduced_data, bin_type="standard", count_type="raw", n_freq
 # or with frequency-binned counts
 
 
-binned_scatterplot <- function(reduced_data, freq_binned=FALSE){
-  if(freq_binned==FALSE){
+binned_scatterplot <- function(reduced_data, count_scale="identity", freq_binned=FALSE){
+  color_lab <- "Frequency"
+  if(count_scale == "log") color_lab <- "Frequency (Log-Scaled)"
+  if(count_scale == "log10") color_lab <- "Frequency (Log10-Scaled)"
+
+    if(freq_binned==FALSE){
     p1 <- ggplot()+
       geom_tile(aes(x=binxs, y=binys, fill=freq), data=reduced_data) +
-      scale_fill_gradient("Frequency",low="#56B1F7", high="#132B43") +
+      scale_fill_gradient(color_lab,low="#56B1F7", high="#132B43", trans=count_scale) +
       theme_bw() +
       theme(legend.position="bottom", 
             legend.key.width = unit(4, "cm")) 
   }
   
   if(freq_binned==TRUE){
+    nf <- length(levels(reduced_data$freq_bins))
     p1 <- ggplot()+
       geom_tile(aes(x=binxs, y=binys, fill=freq_bins), data=reduced_data) +
-      scale_fill_manual("Binned Frequency",
+      scale_fill_manual(paste("Binned",color_lab),
                         guide = guide_legend(nrow=1,
                                              keywidth=1.2,
                                              keyheight=0.5,
@@ -215,26 +221,38 @@ binned_scatterplot <- function(reduced_data, freq_binned=FALSE){
                                              label.position="bottom",
                                              label.hjust=.5,  
                                              title.position = "top"),
-                        values=seq_gradient_pal("#56B1F7", "#132B43")((1:n_freq)/n_freq),
+                        values=seq_gradient_pal("#56B1F7", "#132B43")((1:nf)/nf),
                         labels=levels(reduced_data$freq_bin_labs),
                         drop=FALSE) +
       theme_bw() +
-      theme(legend.key.width = unit(n_freq*.8, "cm"),
+      theme(legend.key.width = unit(nf*.8, "cm"),
             legend.position="bottom") 
   }
 return(p1)
 }
 
-n_freq <- 6
+n_freq <-5
 red_data <- rect_bin_2d(xs=diamonds$carat,ys=diamonds$price,originx=0,originy=0,widthx=.25,widthy=1000, output="reduced")
-red_freq_data <- freq_bin(red_data,  bin_type="standard", count_type="raw", n_freq=n_freq, pretty=FALSE, freq_col="freq")
+red_freq_data <- freq_bin(red_data,  bin_type="standard", count_type="log10", n_freq=n_freq, pretty=FALSE, freq_col="freq")
 
-binned_scatterplot(red_freq_data, freq_binned = TRUE)
+binned_scatterplot(red_freq_data, count_scale="log10", freq_binned = FALSE)
 
 binned_scatterplot(red_freq_data, freq_binned = FALSE) +
   xlab("Carat Weight") + ylab("Price (dollars)") +
   ggtitle("Binned Scatterplot of Diamond Price By Carat Weight")+
   scale_fill_gradient(low="#D6FCF5", high="#1A7B6A")
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
