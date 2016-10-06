@@ -15,12 +15,14 @@
 
 # Binned Scatterplot Functions
   # Reduced binned data - one row per x/y bin
-  # Frequency binning
-  # Plot construction
+  # Frequency binning - add freq bins to reduced data
+  # Plot construction from reduced binned
+  # Plot construction from raw data and bin specs
 
-# Binning Loss Functions
+# Binning Loss Functions and Diagnostic Plots
   # Spatial Loss Summary
   # Frequency Loss Summary
+  # Loss Screeplot for binning granularity
 
 #----------------------------------
 ### univariate binning based on bins definition (potentially developed from different data source, i.e. train bins then bin test)
@@ -141,16 +143,16 @@ rect_bin_2d <- function(data, xcol, ycol, originx, originy, widthx, widthy, outp
              standarizedbinys = (binys-mean(ys))/sd(ys)) %>%
       group_by(binxs,binys) %>%
       summarize(freq = n(),
+                bin_spat_loss_X = sum(abs(xs-binxs)),
+                bin_spat_loss_Y = sum(abs(ys-binys)),
                 bin_spat_loss = sum(sqrt((xs-binxs)^2+(ys-binys)^2)),
                 bin_standardized_spat_loss =  sum(sqrt((standarizedxs-standarizedbinxs)^2+(standarizedxs-standarizedbinys)^2)))
-      return(reduced_binned)
+      return(data.frame(reduced_binned))
   }
 } 
-# Test function
-reduced_data <- rect_bin_2d(data=diamonds, xcol="carat", ycol="price",originx=0,originy=0,widthx=.5,widthy=1000, output="reduced")
-red_data <- red_data %>% mutate(avg_bin_loss = bin_standardized_spat_loss/freq)
-head(red_data)
-
+# # Test function
+# reduced_data <- rect_bin_2d(data=diamonds, xcol="carat", ycol="price",originx=0,originy=0,widthx=.5,widthy=1000, output="reduced")
+# head(reduced_data)
 
 
 #----------------------------------
@@ -188,13 +190,25 @@ freq_bin <- function(reduced_data, bin_type="standard", count_type="raw", n_freq
 # Test out frequency binning function
 # 
 
+#----------------------------------
+### Loss Summary Function
+# Take in reduced-binned data, output loss summaries
+bin_loss <- function(reduced_data){
+  loss_avgs <- with(reduced_data,
+                         c(avg_loss = sum(bin_spat_loss)/sum(freq),
+                         avg_standardized_loss = sum(bin_standardized_spat_loss)/sum(freq),
+                         avg_loss_x = sum(bin_spat_loss_X)/sum(freq), 
+                         avg_loss_y = sum(bin_spat_loss_Y)/sum(freq)))
+  return(loss_avgs)
+}
+# Test Code
+reduced_data <- rect_bin_2d(data=diamonds, xcol="carat", ycol="price",originx=0,originy=0,widthx=.25,widthy=100, output="reduced")
+bin_loss(reduced_data)
 
 #----------------------------------
 ## Plot building Function
 # Takes in either reduced-binned data with raw counts 
 # or with frequency-binned counts. Allow for raw/log/log10 scaling
-
-
 binned_scatter <- function(reduced_data, count_scale="identity", freq_binned=FALSE){
   color_lab <- "Frequency"
   if(count_scale == "log") color_lab <- "Frequency (Log-Scaled)"
@@ -230,23 +244,22 @@ binned_scatter <- function(reduced_data, count_scale="identity", freq_binned=FAL
   }
 return(p1)
 }
-
-n_freq <-5
-red_data <- rect_bin_2d(data=diamonds, xcol="carat",ycol="price",originx=0,originy=0,widthx=.25,widthy=1000, output="reduced")
-red_freq_data <- freq_bin(red_data,  bin_type="standard", count_type="log10", n_freq=n_freq, pretty=FALSE, freq_col="freq")
-
-binned_scatter(red_freq_data, count_scale="log10", freq_binned = FALSE)
-
-binned_scatter(red_freq_data, count_scale="log10",freq_binned = TRUE) +
-  xlab("Carat Weight") + ylab("Price (dollars)") +
-  ggtitle("Binned Scatterplot of Diamond Price By Carat Weight")
+# # Testing Code
+# n_freq <-5
+# red_data <- rect_bin_2d(data=diamonds, xcol="carat",ycol="price",originx=0,originy=0,widthx=.25,widthy=1000, output="reduced")
+# red_freq_data <- freq_bin(red_data,  bin_type="standard", count_type="log10", n_freq=n_freq, pretty=FALSE, freq_col="freq")
+# 
+# binned_scatter(red_freq_data, count_scale="log10", freq_binned = FALSE)
+# 
+# binned_scatter(red_freq_data, count_scale="log10",freq_binned = TRUE) +
+#   xlab("Carat Weight") + ylab("Price (dollars)") +
+#   ggtitle("Binned Scatterplot of Diamond Price By Carat Weight")
 
 
 
 #----------------------------------
 ## All-in-one Binning and Scatterplot Creating Super Function
 # Need to specify all origins, widths, transformations, frequency bins, 
-
 binned_scatter_raw <- function(data, xcol, ycol, originx, originy, widthx, widthy, count_type="raw",
                                freq_binned=FALSE, freq_bin_type="standard",  n_freq=1, pretty=FALSE){
   red_data <- rect_bin_2d(data=data, xcol=xcol, ycol=ycol, originx=originx,originy=originy,widthx=widthx,widthy=widthy, output="reduced")
@@ -255,13 +268,16 @@ binned_scatter_raw <- function(data, xcol, ycol, originx, originy, widthx, width
   if(count_type != "raw") count_scale <- count_type
   return(binned_scatter(red_freq_data, count_scale=count_scale, freq_binned = freq_binned))
 }
+# # Testing Code
+# binned_scatter_raw(data=diamonds, xcol="carat", ycol="price", originx=0,
+#                    originy=0, widthx=.25, widthy=1000, count_type = "log10")
+# 
+# binned_scatter_raw(data=diamonds, xcol="carat", ycol="price", originx=0,
+#                    originy=0, widthx=.25, widthy=1000, count_type="raw",
+#                    freq_binned=TRUE, freq_bin_type="quantile", n_freq=5, pretty=FALSE)
 
-binned_scatter_raw(data=diamonds, xcol="carat", ycol="price", originx=0,
-                   originy=0, widthx=.25, widthy=1000, count_type = "log10")
 
-binned_scatter_raw(data=diamonds, xcol="carat", ycol="price", originx=0,
-                   originy=0, widthx=.25, widthy=1000, count_type="raw",
-                   freq_binned=TRUE, freq_bin_type="quantile", n_freq=5, pretty=FALSE)
+
 
 
 #---------------------------------------------------------------------
