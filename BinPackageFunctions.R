@@ -147,7 +147,7 @@ rect_bin_2d <- function(xs, ys, originx, originy, widthx, widthy, output="full")
   }
 } 
 # Test function
-red_data <- rect_bin_2d(xs=diamonds$carat,ys=diamonds$price,originx=0,originy=0,widthx=1,widthy=1000, output="reduced")
+reduced_data <- rect_bin_2d(xs=diamonds$carat,ys=diamonds$price,originx=0,originy=0,widthx=.5,widthy=1000, output="reduced")
 red_data <- red_data %>% mutate(avg_bin_loss = bin_standardized_spat_loss/freq)
 head(red_data)
 
@@ -187,27 +187,54 @@ freq_bin <- function(reduced_data, bin_type="standard", count_type="raw", n_freq
 # Test out frequency binning function
 # 
 
-head(red_freq_data)
+
+#----------------------------------
+## Plot building Function
+# Takes in either reduced-binned data with raw counts 
+# or with frequency-binned counts
 
 
-red_data <- rect_bin_2d(xs=diamonds$carat,ys=diamonds$price,originx=0,originy=0,widthx=.5,widthy=1000, output="reduced")
-red_freq_data <- freq_bin(red_data,  bin_type="standard", count_type="raw", n_freq=5, pretty=FALSE, freq_col="freq")
-ggplot()+
-  geom_tile(aes(x=binxs, y=binys, fill=freq_bins), data=red_freq_data) +
-  scale_fill_brewer("Count", guide = guide_legend(label.position="bottom",
-                                                  label.hjust=.5,  
-                                                  title.position = "top"), 
-                    
-                    labels=levels(red_freq_data$freq_bin_labs)) +
-  theme_bw()+
-  theme(legend.key.width = unit(4, "cm"),
-        legend.position="bottom")
-### PROBLEM: the plot skips over empty factor levels in legend and color scaling. 
+binned_scatterplot <- function(reduced_data, freq_binned=FALSE){
+  if(freq_binned==FALSE){
+    p1 <- ggplot()+
+      geom_tile(aes(x=binxs, y=binys, fill=freq), data=reduced_data) +
+      scale_fill_gradient("Frequency",low="#56B1F7", high="#132B43") +
+      theme_bw() +
+      theme(legend.position="bottom", 
+            legend.key.width = unit(4, "cm")) 
+  }
+  
+  if(freq_binned==TRUE){
+    p1 <- ggplot()+
+      geom_tile(aes(x=binxs, y=binys, fill=freq_bins), data=reduced_data) +
+      scale_fill_manual("Binned Frequency",
+                        guide = guide_legend(nrow=1,
+                                             keywidth=1.2,
+                                             keyheight=0.5,
+                                             default.unit="inch",
+                                             label.position="bottom",
+                                             label.hjust=.5,  
+                                             title.position = "top"),
+                        values=seq_gradient_pal("#56B1F7", "#132B43")((1:n_freq)/n_freq),
+                        labels=levels(reduced_data$freq_bin_labs),
+                        drop=FALSE) +
+      theme_bw() +
+      theme(legend.key.width = unit(n_freq*.8, "cm"),
+            legend.position="bottom") 
+  }
+return(p1)
+}
 
+n_freq <- 6
+red_data <- rect_bin_2d(xs=diamonds$carat,ys=diamonds$price,originx=0,originy=0,widthx=.25,widthy=1000, output="reduced")
+red_freq_data <- freq_bin(red_data,  bin_type="standard", count_type="raw", n_freq=n_freq, pretty=FALSE, freq_col="freq")
 
+binned_scatterplot(red_freq_data, freq_binned = TRUE)
 
-
-
+binned_scatterplot(red_freq_data, freq_binned = FALSE) +
+  xlab("Carat Weight") + ylab("Price (dollars)") +
+  ggtitle("Binned Scatterplot of Diamond Price By Carat Weight")+
+  scale_fill_gradient(low="#D6FCF5", high="#1A7B6A")
 
 
 
