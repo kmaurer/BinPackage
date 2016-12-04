@@ -1,3 +1,6 @@
+# This file contains a reworked set of binning, loss and plot building functions that are designed 
+# to accompany the paper in an associated R package. The package is currently in a development version hosted 
+# and available through Github
 #------------------------------------------------------------------------------------------
 ### Binning functions: 
 # 1d binning
