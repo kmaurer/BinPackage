@@ -12,14 +12,16 @@ bin_loss(reduced_data, type = "average")
 \item{type}{Type of loss summary "average" or "total"}
 }
 \value{
-Vector of loss summaries
+Vector of loss summaries (both spatial and frequency losses)
 }
 \description{
 Take in reduced-binned data, output loss summaries
 }
 \examples{
-reduced_data <- rect_bin_2d(data=diamonds, xcol="carat", ycol="price",originx=0,originy=0,widthx=.25,widthy=100, output="reduced")
-bin_loss(reduced_data)
-bin_loss(reduced_data, type="total")
+red_data <- rect_bin_2d(data=diamonds, xcol="carat",ycol="price",originx=0,originy=0,widthx=.25,widthy=1000, output="reduced")
+red_freq_data <- freq_bin(red_data,  bin_type="standard", count_type="log10", n_freq=5, pretty=FALSE, freq_col="freq")
+bin_loss(red_data)
+bin_loss(red_freq_data)
+bin_loss(red_data, type="total")
 }
 

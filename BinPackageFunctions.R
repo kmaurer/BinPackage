@@ -296,8 +296,8 @@ binned_scatter <- function(reduced_data, count_scale="identity", freq_binned=FAL
   color_lab <- "Frequency"
   if(count_scale == "log") color_lab <- "Frequency (Log-Scaled)"
   if(count_scale == "log10") color_lab <- "Frequency (Log10-Scaled)"
-
-    if(freq_binned==FALSE){
+  
+  if(freq_binned==FALSE){
     p1 <- ggplot()+
       geom_tile(aes(x=binxs, y=binys, fill=freq), data=reduced_data) +
       scale_fill_gradient(color_lab,low="#56B1F7", high="#132B43", trans=count_scale) +
@@ -325,7 +325,7 @@ binned_scatter <- function(reduced_data, count_scale="identity", freq_binned=FAL
       theme(legend.key.width = unit(nf*.8, "cm"),
             legend.position="bottom") 
   }
-return(p1)
+  return(p1)
 }
 # # Testing Code
 # n_freq <-5
@@ -337,7 +337,6 @@ return(p1)
 # binned_scatter(red_freq_data, count_scale="log10",freq_binned = TRUE) +
 #   xlab("Carat Weight") + ylab("Price (dollars)") +
 #   ggtitle("Binned Scatterplot of Diamond Price By Carat Weight")
-
 
 
 #----------------------------------
