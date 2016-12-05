@@ -3,8 +3,8 @@ Type: Package
 Title: Binning and Loss Functions for Binned Scatterplots
 Version: 0.1
 Date: 2016-12-04
-Author: Karsten Maurer, Heike Hofmann, Susan Vanderplas
-Maintainer: Karsten Maurer <maurerkt@miamioh.edu>
+Author: Authors Blinded
+Maintainer: Maintainer Blinded <blinded@institution.edu>
 Description: This package provides binning and loss functions related to the construction of binned scatterplots.
     For binning - functions for creating reduced binned data using general, standard and quantile rectangular specification for univariate and bivariate data.
     For losses - functions spatial loss from converting points to tiles, and frequency loss from discretizing shading schemes.
